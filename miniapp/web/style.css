@@ -1,0 +1,89 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg: #10151d;
+  --surface: #18212c;
+  --raised: #202d3a;
+  --edge: #303d4b;
+  --ink: #eff5fa;
+  --muted: #aab8c8;
+  --accent: #8fe1cb;
+  --accent-ink: #12241f;
+  --waiting: #ffca87;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eff3f6;
+  --surface: #fff;
+  --raised: #e4edf2;
+  --edge: #d2dbe2;
+  --ink: #19222d;
+  --muted: #506173;
+  --accent: #146e59;
+  --accent-ink: #fff;
+  --waiting: #80500c;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); }
+.workspace {
+  width: min(100%, 580px); min-height: 100dvh; margin-inline: auto;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+}
+.masthead {
+  display: flex; align-items: center; gap: 9px; min-height: 52px;
+  border-bottom: 1px solid var(--edge); font-size: 15px; font-weight: 720;
+}
+.brand-mark { width: 12px; height: 12px; background: var(--accent); border-radius: 3px; }
+.preview, .status { font-size: 12px; border: 1px solid var(--edge); border-radius: 6px; padding: 4px 7px; }
+.preview { margin-left: auto; color: var(--muted); }
+.connection { padding: 10px 12px; border: 1px solid var(--edge); border-radius: 8px; color: var(--waiting); }
+h1 { font-size: clamp(24px, 6vw, 32px); line-height: 1.12; margin: 19px 0; overflow-wrap: anywhere; }
+.project { margin-bottom: 20px; }
+.project-title { margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 640; }
+button, textarea { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.session {
+  display: flex; align-items: center; gap: 10px; min-height: 68px; width: 100%;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
+  color: var(--ink); text-align: left; padding: 10px; margin: 6px 0;
+}
+.session:active { background: var(--raised); }
+.provider-mark {
+  flex: 0 0 33px; display: grid; place-items: center; height: 33px;
+  border-radius: 8px; background: var(--raised); color: var(--waiting); font: 650 13px ui-monospace, monospace;
+}
+.provider-mark[data-provider="codex"] { color: var(--accent); }
+.session-copy { min-width: 0; flex: 1; }
+.session-copy strong { display: block; line-height: 1.25; overflow-wrap: anywhere; font-size: 14px; }
+.session-copy small { display: block; margin-top: 4px; color: var(--muted); }
+.status { max-width: 33%; flex: 0 0 auto; color: var(--muted); }
+.status[data-status="waiting"] { color: var(--waiting); }
+.status[data-status="working"], .status[data-status="shell"] { color: var(--accent); }
+.detail-head { border-bottom: 1px solid var(--edge); padding: 8px 0 11px; }
+.detail-head h1 { margin: 5px 0 7px; }
+.detail-head p, .empty { margin: 0; color: var(--muted); font-size: 13px; }
+.back { border: 0; background: transparent; color: var(--accent); padding: 7px 0; min-height: 44px; }
+.back span:first-child { font-size: 22px; vertical-align: middle; margin-right: 3px; }
+#detail { min-height: calc(100dvh - 53px); display: flex; flex-direction: column; }
+#conversation { display: flow-root; flex: 1; padding: 14px 0; color: var(--muted); }
+.bubble {
+  width: fit-content; max-width: 96%; margin: 0 0 9px; padding: 10px 12px;
+  border: 1px solid var(--edge); border-radius: 12px; background: var(--surface); color: var(--ink);
+}
+.bubble[data-role="user"] { margin-left: auto; background: var(--raised); }
+.bubble p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.55; }
+.byline { color: var(--muted); display: flex; align-items: center; gap: 14px; font-size: 11px; }
+.byline time { margin-left: auto; white-space: nowrap; }
+#composer { position: sticky; bottom: 0; background: var(--bg); padding: 9px 0 max(12px, env(safe-area-inset-bottom)); }
+#delivery { margin: 0 0 7px; color: var(--muted); font-size: 12px; }
+.input-row { display: flex; align-items: stretch; gap: 8px; }
+textarea {
+  resize: vertical; min-width: 0; min-height: 48px; flex: 1; padding: 9px 11px;
+  border: 1px solid var(--edge); border-radius: 10px; color: var(--ink); background: var(--surface); font-size: 16px;
+}
+#send {
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 0 14px; font-weight: 650;
+}
+#send:disabled { background: var(--raised); color: var(--muted); cursor: default; }

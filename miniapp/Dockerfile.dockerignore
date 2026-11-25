@@ -1,0 +1,16 @@
+*
+!miniapp/
+miniapp/*
+!miniapp/bridge-queue.mjs
+!miniapp/gateway.mjs
+!miniapp/preview.mjs
+!miniapp/telegram-auth.mjs
+!miniapp/web/
+!miniapp/web/index.html
+!miniapp/web/app.mjs
+!miniapp/web/style.css
+!shared/
+shared/*
+!shared/locales/
+shared/locales/*
+!shared/locales/telegram.mjs

@@ -10,6 +10,12 @@ do meio (0.**3**.0).
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Mini App do Telegram:** lista móvel de sessões do Codex e Claude Code, conversa recente e envio
+  de mensagens com estado de entrega. O auxiliar do Mac se conecta ao gateway pelo lado de fora e
+  usa a instância local do Habblaud.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido
