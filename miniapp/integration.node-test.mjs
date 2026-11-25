@@ -82,6 +82,40 @@ test('presents real main sessions in priority order without project paths or raw
   ]);
 });
 
+test('exposes only the fields needed by the mobile overview', async () => {
+  const recent = Array.from({ length: 26 }, (_, at) => ({
+    kind: 'edit', at, text: 'raw summary', detail: 'private path',
+  }));
+  const client = createHabblaudClient({ fetchImpl: async () => Response.json({
+    rooms: [{ ...room, seed: 351, slot: 1 }], meta: { messages: true },
+    agents: [
+      { ...main, recent, seed: 13, look: 'm', account: 'codex',
+        activity: { kind: 'read', detail: '/Users/example/private/view.lua' } },
+      { ...main, id: 'child', kind: 'sub', name: 'Eva', parentId: main.id, seed: 19, activity: { kind: 'test', at: 50 } },
+      { ...main, id: 'nested', kind: 'sub', parentId: 'child' },
+      { ...main, id: 'completed', kind: 'sub', parentId: main.id, status: 'done' },
+      { ...main, id: 'demo:child', kind: 'sub', parentId: main.id },
+    ],
+    accounts: [{
+      id: 'codex', short: 'X', name: 'Codex', provider: 'codex', email: 'private@example.com', configDir: room.id, usageStatus: 'ok',
+      usage: { sevenDay: { utilization: 12, resetsAt: 100 } },
+    }],
+  }) });
+  const overview = await client.listSessions('overview');
+  assert.equal(overview.sessions[0].subagents, 2);
+  assert.equal(overview.sessions[0].name, 'Nina');
+  assert.equal(overview.sessions[0].badge, 'X');
+  assert.equal(overview.sessions[0].seed, 13);
+  assert.equal(overview.sessions[0].activityFile, 'view.lua');
+  assert.deepEqual(overview.sessions[0].subagentDetails.map(({ id }) => id), ['child', 'nested']);
+  assert.equal(overview.sessions[0].subagentDetails[0].activityKind, 'test');
+  assert.deepEqual(overview.rooms, [{ name: room.name, seed: 351, slot: 1 }]);
+  assert.equal(overview.activity.length, 24);
+  assert.deepEqual(overview.activity[0], { sessionId: main.id, agent: 'Eva', at: 50, kind: 'test' });
+  assert.deepEqual(overview.accounts[0].sevenDay, { utilization: 12, resetsAt: 100 });
+  assert.doesNotMatch(JSON.stringify(overview), /private|raw summary/);
+});
+
 test('preserves the target and content and reads the delivery status separately', async () => {
   const status = { id: 'm-test-id', agentId: main.id, status: 'queued', updatedAt: 25 };
   const instruction = '请继续下一项\n保留现有配置';
@@ -180,6 +214,7 @@ test('gateway checks Telegram and bridge independently and relays messages by se
   const bridgeSecret = 'fixture-secret-with-more-than-32-characters';
   const gateway = createGatewayHandler({ botToken: testToken, allowedUserIds: authOptions.allowedUserIds, bridgeSecret });
   assert.equal((await http(gateway, '/api/sessions')).status, 401);
+  assert.equal((await http(gateway, '/api/overview')).status, 401);
   assert.equal((await http(gateway, '/bridge/jobs/next')).status, 401);
   assert.equal((await http(gateway, '/api/auth', { body: { initData: 'tampered' } })).status, 401);
   const auth = await http(gateway, '/api/auth', { body: { initData: signedData({ timestamp: Math.floor(Date.now() / 1000) }) } });
@@ -202,6 +237,14 @@ test('gateway checks Telegram and bridge independently and relays messages by se
   assert.equal((await http(gateway, '/bridge/jobs/' + job.id, { token: bridgeSecret, body: result })).status, 404);
   assert.equal((await request).status, 201);
   assert.deepEqual((await request).data, receipt);
+
+  const overview = http(gateway, '/api/overview', { token: auth.data.token });
+  await new Promise((resolve) => setImmediate(resolve));
+  const legacy = (await http(gateway, '/bridge/jobs/next', { token: bridgeSecret })).data;
+  assert.equal(legacy.operation, 'listSessions');
+  assert.deepEqual(legacy.args, ['overview']);
+  await http(gateway, '/bridge/jobs/' + legacy.id, { token: bridgeSecret, body: { ok: true, data: [] } });
+  assert.deepEqual((await overview).data, { sessions: [] });
 });
 
 test('local preview serves the Mini App and a synthetic send-and-reply loop', async () => {
@@ -212,6 +255,11 @@ test('local preview serves the Mini App and a synthetic send-and-reply loop', as
   assert.doesNotMatch(page.data, /telegram-web-app\.js/);
   assert.equal((await http(gateway, '/app.mjs')).status, 200);
   assert.equal((await http(gateway, '/locale.mjs')).status, 200);
+  assert.equal((await http(gateway, '/office-art.mjs')).status, 200);
+  const art = await http(gateway, '/office.png');
+  assert.equal(art.headers['Content-Type'], 'image/png');
+  const { data: overview } = await http(gateway, '/api/overview');
+  assert.ok(overview.sessions.length && overview.activity.length && overview.accounts.length);
   const { data: [session] } = await http(gateway, '/api/sessions');
   const { data: message } = await http(gateway, '/api/messages', { body: { agentId: session.id, text: '继续' } });
   assert.equal(message.status, 'queued');

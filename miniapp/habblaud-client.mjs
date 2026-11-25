@@ -33,11 +33,12 @@ export function createHabblaudClient({
   }
 
   return {
-    async listSessions() {
+    async listSessions(view) {
       const snapshot = await request('/api/snapshot');
       const names = new Map(snapshot.rooms.map((room) => [room.id, room.name]));
-      return snapshot.agents
-        .filter((agent) => agent.kind === 'main' && !agent.id.startsWith(DEMO_PREFIX))
+      const agents = snapshot.agents.filter((agent) => !agent.id.startsWith(DEMO_PREFIX));
+      const main = agents.filter((agent) => agent.kind === 'main');
+      const sessions = main
         .map((agent) => ({
           id: agent.id,
           project: names.get(agent.roomId) ?? '',
@@ -49,6 +50,8 @@ export function createHabblaudClient({
         }))
         .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
           b.updatedAt - a.updatedAt);
+      return view === 'overview' ?
+        officeOverview(sessions, agents, snapshot.rooms, snapshot.accounts ?? []) : sessions;
     },
 
     async getConversation(agentId) {
@@ -81,6 +84,73 @@ export function createHabblaudClient({
       return messageStatus(await request(`/api/messages/${id}`));
     },
   };
+}
+
+function officeOverview(sessions, agents, rooms, accounts) {
+  const mainIds = new Set(sessions.map(({ id }) => id));
+  const agentById = new Map(agents.map((agent) => [agent.id, agent]));
+  const accountById = new Map(accounts.map((account) => [account.id, account]));
+  const subagents = new Map();
+  const owners = new Map(sessions.map(({ id }) => [id, id]));
+  for (const agent of agents) {
+    if (agent.kind !== 'sub') continue;
+    const visited = new Set([agent.id]);
+    let parent = agent.parentId;
+    while (parent && !mainIds.has(parent) && !visited.has(parent)) {
+      visited.add(parent);
+      parent = agentById.get(parent)?.parentId;
+    }
+    if (!mainIds.has(parent)) continue;
+    owners.set(agent.id, parent);
+    if (['offline', 'done'].includes(agent.status)) continue;
+    const group = subagents.get(parent) ?? [];
+    group.push({ id: agent.id, ...agentCard(agent, accountById) });
+    subagents.set(parent, group);
+  }
+  const activity = agents.flatMap((agent) => {
+    const sessionId = owners.get(agent.id);
+    if (!sessionId) return [];
+    const recent = agent.recent?.length ? agent.recent : [agent.activity];
+    return recent.filter((event) => Number.isFinite(event?.at)).map(({ at, kind }) => ({
+      sessionId, agent: agent.name, at, kind,
+    }));
+  }).sort((a, b) => b.at - a.at).slice(0, 24);
+  return {
+    sessions: sessions.map((session) => {
+      const children = subagents.get(session.id) ?? [];
+      return {
+        ...session, ...agentCard(agentById.get(session.id), accountById),
+        subagents: children.length, subagentDetails: children,
+      };
+    }),
+    rooms: rooms.filter(({ seed }) => Number.isInteger(seed)).map(({ name, seed, slot }) => ({ name, seed, slot })),
+    activity,
+    accounts: accounts.map(({ name, provider = 'claude', usage, usageStatus }) => ({
+      name, provider, usageStatus,
+      fiveHour: usageWindow(usage?.fiveHour),
+      sevenDay: usageWindow(usage?.sevenDay),
+      noQuota: usage?.noQuota === true,
+    })),
+  };
+}
+
+function agentCard(agent, accounts) {
+  const activity = agent.activity;
+  const file = ['read', 'edit', 'write'].includes(activity?.kind) && typeof activity.detail === 'string' ?
+    activity.detail.split(/[\\/]/).at(-1) : '';
+  return {
+    name: agent.name, title: agent.title || agent.name, provider: agent.provider ?? 'claude',
+    status: agent.status, statusSince: agent.statusSince, activityKind: activity?.kind,
+    activityFile: /^[\p{L}\p{N}_-][\p{L}\p{N}_. -]{0,56}\.[a-z\d]{1,12}$/iu.test(file) ? file : undefined,
+    badge: accounts.get(agent.account)?.short,
+    seed: agent.seed, look: agent.look, parts: agent.parts,
+    ...(agent.kind === 'sub' ? { role: agent.role } : {}),
+  };
+}
+
+function usageWindow(window) {
+  if (!Number.isFinite(window?.utilization)) return undefined;
+  return { utilization: window.utilization, resetsAt: window.resetsAt };
 }
 
 function validateAgentId(id) {

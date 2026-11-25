@@ -23,10 +23,10 @@
     "build:client": "vite build --config vite.config.ts",
     "build:server": "node scripts/build-server.mjs",
     "start": "node dist/server/index.js",
-    "miniapp:preview": "node miniapp/gateway.mjs --preview",
-    "miniapp:gateway": "node miniapp/gateway.mjs",
+    "miniapp:preview": "npm run miniapp:build && node miniapp/gateway.mjs --preview",
+    "miniapp:gateway": "npm run miniapp:build && node miniapp/gateway.mjs",
     "miniapp:bridge": "node miniapp/mac-bridge.mjs",
-    "miniapp:test": "node --test miniapp/integration.node-test.mjs",
+    "miniapp:test": "npm run miniapp:build && node --test miniapp/integration.node-test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p server/tsconfig.json",
     "test": "vitest run",
     "i18n:check": "tsx scripts/i18n-check.ts",
@@ -48,7 +48,8 @@
     "codex:bridge": "tsx scripts/codex-bridge.ts",
     "remote:setup": "tsx scripts/remote-setup.ts",
     "remote:mdns": "tsx scripts/remote-mdns.ts",
-    "release": "tsx scripts/release.ts"
+    "release": "tsx scripts/release.ts",
+    "miniapp:build": "esbuild miniapp/office-art.ts --bundle --format=esm --minify --outfile=dist/miniapp/office-art.mjs"
   },
   "devDependencies": {
     "@fontsource/pixelify-sans": "^5.3.0",

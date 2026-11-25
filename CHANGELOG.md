@@ -16,6 +16,14 @@ do meio (0.**3**.0).
   de mensagens com estado de entrega. O auxiliar do Mac se conecta ao gateway pelo lado de fora e
   usa a instância local do Habblaud.
 
+### Alterado
+
+- **Mini App do Telegram:** o painel móvel destaca sessões em atividade e pedidos de atenção, com navegação
+  entre projetos, atividade recente e salas. A conexão diferencia a ponte do Mac do Habblaud local, e as cotas
+  das contas aparecem quando disponíveis.
+- **Salas e agentes no celular:** as salas usam a arte em pixel do escritório, com personagens clicáveis.
+  Cada projeto mostra os avatares, tarefas, tempo ocioso e grupos de subagentes.
+
 ## [1.0.3] - 2026-10-16
 
 ### Corrigido

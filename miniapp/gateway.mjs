@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { createBridgeQueue, MiniAppError } from './bridge-queue.mjs';
 import { telegramUsersFromEnv, verifyTelegramUser } from './telegram-auth.mjs';
 import { createPreview } from './preview.mjs';
@@ -14,6 +15,9 @@ const assets = new Map([
   ['/app.mjs', ['web/app.mjs', 'text/javascript; charset=utf-8']],
   ['/style.css', ['web/style.css', 'text/css; charset=utf-8']],
   ['/locale.mjs', ['../shared/locales/telegram.mjs', 'text/javascript; charset=utf-8']],
+  ['/brand.png', ['../client/public/assets/brand/logo-mark@4x.png', 'image/png']],
+  ['/office.png', ['../client/public/assets/illustrations/empty-office.png', 'image/png']],
+  ['/office-art.mjs', ['../dist/miniapp/office-art.mjs', 'text/javascript; charset=utf-8']],
 ]);
 
 function json(res, status, data) {
@@ -61,6 +65,7 @@ export function createGatewayHandler({ preview = false, botToken, allowedUserIds
   }
   const bridge = jobs ?? (preview ? createPreview() : createBridgeQueue());
   const sessionKey = randomBytes(32);
+  let compressedArt;
   const sign = (payload) => createHmac('sha256', sessionKey).update(payload).digest('base64url');
   const now = () => Math.floor(Date.now() / 1000);
   const authorize = (req) => {
@@ -74,14 +79,25 @@ export function createGatewayHandler({ preview = false, botToken, allowedUserIds
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('Content-Security-Policy',
-      "default-src 'none'; script-src 'self' https://telegram.org; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'");
+      "default-src 'none'; script-src 'self' https://telegram.org; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'");
 
     try {
       const path = new URL(req.url, 'http://127.0.0.1').pathname;
       const method = req.method;
       if (method === 'GET' && assets.has(path)) {
         const [file, mime] = assets.get(path);
-        let data = await readFile(new URL(file, import.meta.url));
+        const url = new URL(file, import.meta.url);
+        let data;
+        if (path === '/office-art.mjs') {
+          res.setHeader('Vary', 'Accept-Encoding');
+          const acceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$)/i.test(req.headers['accept-encoding'] ?? '');
+          if (acceptsGzip) {
+            compressedArt ??= gzipSync(await readFile(url));
+            res.setHeader('Content-Encoding', 'gzip');
+            data = compressedArt;
+          }
+        }
+        data ??= await readFile(url);
         if (preview && path === '/') {
           data = data.toString().replace('<script defer src="https://telegram.org/js/telegram-web-app.js"></script>', '');
         }
@@ -120,6 +136,10 @@ export function createGatewayHandler({ preview = false, botToken, allowedUserIds
         if (!preview && !authorize(req)) throw new MiniAppError(401, 'not_authorized');
         if (method === 'GET' && path === '/api/sessions') {
           return json(res, 200, await bridge.run('listSessions'));
+        }
+        if (method === 'GET' && path === '/api/overview') {
+          const office = await bridge.run('listSessions', ['overview']);
+          return json(res, 200, Array.isArray(office) ? { sessions: office } : office);
         }
         const conversation = /^\/api\/sessions\/([^/]+)\/conversation$/.exec(path);
         if (method === 'GET' && conversation) {
